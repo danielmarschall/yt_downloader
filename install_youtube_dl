@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# https://ytdl-org.github.io/youtube-dl/download.html
+
+sudo curl -L https://yt-dl.org/downloads/latest/youtube-dl -o /usr/local/bin/youtube-dl
+sudo chmod a+rx /usr/local/bin/youtube-dl
+
+# sudo wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl
+# sudo chmod a+rx /usr/local/bin/youtube-dl
+
+# sudo pip install --upgrade youtube_dl
+
+DIR=$( dirname "$0" )
+cd "$DIR"
+rm youtube-dl
+ln /usr/local/bin/youtube-dl
+

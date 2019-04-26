@@ -11,7 +11,7 @@ FILENAME="stable.tar.gz"
 
 cd ..
 rm "$dirname"/"$FILENAME"
-tar cvfz "$tmpfile" --exclude "yt_downloader2/ffmpeg" --exclude "yt_downloader2/libav" --exclude "yt_downloader2/marschall" --exclude "yt_downloader2/youtube-dl" --exclude "yt_downloader2/upload_to_vts" -- "$dirname"
+tar cvfz "$tmpfile" --exclude "yt_downloader2/ffmpeg" --exclude "yt_downloader2/.svn" --exclude "yt_downloader2/libav" --exclude "yt_downloader2/marschall" --exclude "yt_downloader2/youtube-dl" --exclude "yt_downloader2/upload_to_vts" -- "$dirname"
 
 # otherwise: "the file has changed while reading"
 mv "$tmpfile" "$dirname"/"$FILENAME"

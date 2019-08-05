@@ -1,10 +1,10 @@
 #!/usr/bin/php
 <?php
 
-// ViaThinkSoft YouTube Downloader Util 2.1
-// Revision: 2018-04-16
+// ViaThinkSoft YouTube Downloader Util 2.1.1
+// Revision: 2019-08-05
 // Author: Daniel Marschall <www.daniel-marschall.de>
-// Licensed under the terms of GPLv3
+// Licensed under the terms of the Apache 2.0 license
 //
 // Syntax:
 // ./ytdwn [-t|--type v:[ext]|a:[ext]] (default v:)
@@ -201,17 +201,38 @@ if (count($rest_args) == 0) syntax_error("Please enter at least one desired vide
 
 if ($failTreshold <= 0) syntax_error("Fail treshold has invalid value. Must be >0.");
 
-// Try to install youtube-dl, if it does not exist
+// Try to download/update youtube-dl into local directory
+
+$newest_version_md5 = get_latest_ytdl_md5sum();
+if (!$newest_version_md5) {
+	fwrite(STDERR, "Failed to get MD5 sum of latest version of 'youtube-dl' from GitHub. Will not try to download/update 'youtube-dl' into local directory.\n");
+} else {
+	if (!file_exists(__DIR__.'/youtube-dl') || ($newest_version_md5 != md5_file(__DIR__.'/youtube-dl'))) {
+		// Try to download/update the file in our directory. It should be the newest available, since YT often breaks downloader
+		if (file_exists(__DIR__.'/youtube-dl')) {
+			echo "Trying to update 'youtube-dl' in local directory...\n";
+		} else {
+			echo "Trying to download 'youtube-dl' into local directory...\n";
+		}
+		if (!@file_put_contents(__DIR__.'/youtube-dl', file_get_contents('https://yt-dl.org/downloads/latest/youtube-dl'))) {
+			fwrite(STDERR, "Failed to download 'youtube-dl' into local directory (file_get_contents).\n");
+		} else {
+			if (!@chmod(__DIR__.'/youtube-dl', 0544)) {
+				fwrite(STDERR, "Failed to download 'youtube-dl' into local directory (chmod 544).\n");
+				@unlink(__DIR__.'/youtube-dl'); // try to delete, otherwise we might try to execute a non-executable file
+			}
+		}
+	}
+}
 
 if (command_exists(__DIR__.'/youtube-dl')) {
+	echo "Will use 'youtube-dl' from local directory\n";
 	define('YTDL_EXE', __DIR__.'/youtube-dl');
-} else if (command_exists('youtube-dl')) {
-	define('YTDL_EXE', 'youtube-dl');
 } else {
-	@file_put_contents(__DIR__.'/youtube-dl', file_get_contents('https://yt-dl.org/downloads/latest/youtube-dl'));
-	@chmod(__DIR__.'/youtube-dl', 0544);
-	if (command_exists(__DIR__.'/youtube-dl')) {
-		define('YTDL_EXE', __DIR__.'/youtube-dl');
+	// Download failed. Is at least a package installed?
+	if (command_exists('youtube-dl')) {
+		echo "Will use 'youtube-dl' from Linux package\n";
+		define('YTDL_EXE', 'youtube-dl');
 	} else {
 		fwrite(STDERR, "This script requires the tool/package 'youtube-dl'. Please install it first.\n");
 		exit(1);
@@ -875,4 +896,18 @@ function intelligent_rename($src, $dest) {
 		$dest_neu = "$namewoext ($failcnt)$ext";
 	}
 	return rename($src, $dest_neu);
+}
+
+function get_latest_ytdl_md5sum() {
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, 'https://yt-dl.org/downloads/latest/MD5SUMS');
+	#curl_setopt($ch, CURLOPT_HEADER, false);
+	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	$cont = curl_exec($ch);
+	if (preg_match('@^(.+)  youtube\-dl$@ismU', $cont, $m)) {
+		return $m[1];
+	} else {
+		return false;
+	}
 }

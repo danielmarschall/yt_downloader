@@ -1,83 +1,19 @@
 #!/usr/bin/php
 <?php
 
-// ViaThinkSoft YouTube Downloader Util 2.1.1
-// Revision: 2019-08-05
+// ViaThinkSoft YouTube Downloader Util 2.2
+// Revision: 2020-07-25
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 license
 //
-// Syntax:
-// ./ytdwn [-t|--type v:[ext]|a:[ext]] (default v:)
-//         [-o|--outputDir <dir>]      (default current working directory)
-//         [-a|--alreadyDownloaded <file>]
-//         [-f|--failList <file> <treshold>]  (This file logs failures)
-//         [-F|--failTreshold <num>]   (Don't download if failure (-f) treshold is reached. Default: 3)
-//         [-V|--version]              (shows version)
-//         [-v|--verbose]              (displays verbose information to STDOUT)
-//         [-h|--help]                 (shows help)
-//         [-N|--no-mp3-tagtransfer]   (disables transfer of video ID to MP3 ID tag)
-//                                     (This feature requires the package "id3v2")
-//         [-T|--default-template <t>] (Sets default filename template.)
-//                                     (Default: '%(title)s-%(id)s.%(ext)s')
-//         [-X|--extra-args <args>]    (Additional arguments passed through)
-//                                     (youtube-dl. Default "-ic")
-//         [-A|--api-key <file|key>]   (specifies the API key, or a file containing the API key)
-//                                     (Default: ~/.yt_api_key)
-//         [-C|--resultcache <file>]   (allows video results to be cached in this file)
-//                                     (only for playlists or channels)
-//         [-O|--create-outputdir]     (allows creation of the output directories, recursively)
-//         [--]
-//         <resource> [<resource> ...]
-//
-// For all paths (outputDir, alreadyDownloaded, apikey, failList and resultcache), you can use the
-// term '[listname]' which will be replaced by the basename of the current list file (without file extension).
-// For example you can do following:
-//         ./ytdwn -o 'downloads/[listname]' -- list:*.list
-// If no list file is processed, it will be replaced with nothing.
-//
-// The "alreadyDownloaded" argument contains a file which will be managed by ytdwn.
-// It will contain all video IDs which have been downloaded. This allows you to
-// move away the already downloaded files, and ytdwn will not download them again.
-//
-// Examples for type:
-//         v:         best video quality
-//         a:         best audio only
-//         a:mp3      audio only, mp3
-//         Valid audio formats according to "man youtube-dl":
-//         "best", "aac", "flac", "mp3", "m4a", "opus", "vorbis", or "wav"; "best" by default
-//
-// A <resource> can be one of the following:
-//         vid:<video ID>
-//         vurl:<youtube video URL>
-//         pid:<playlist ID>
-//         purl:<playlist URL>
-//         cid:<channel id>
-//         cname:<channel name>
-//         curl:<channel or username URL>
-//         list:<file with resource entries>   (comments can be #)
-//         search:<searchterm>
-//
-// For channels (cid, cname, curl) you can also perform a search to filter the results.
-// This can be done like this:
-//         cname:[search="Elvis Presley"]channel_1234
-// For the search option, following parameters are possible:
-//         search:[order=date][maxresults=50]"Elvis Presley"
-//         Acceptable order values are: date, rating, relevance, title, videoCount, viewCount
-//         Default values are order=relevance and maxresults=10
-//         Use maxresults=-1 to download everything which matches the searchterm.
-//
-// Requirements:
-//         - PHP CLI
-//         - Package "youtube-dl" (ytdwn will try to download it automatically, if possible)
-//         - A YouTube API key (can be obtained here: https://console.developers.google.com/apis/credentials )
-//         - If you want to extract audio, you need additionally: ffmpeg or avconv and ffprobe or avprobe.
-//         - Optional: package "id3v2" to allow the YouTube video id to be transferred to the MP3 ID tag
+// For syntax and other documentation, please read the file README.
 
 // ------------------------------------------------------------------------------------------------
 
 error_reporting(E_ALL | E_NOTICE | E_STRICT | E_DEPRECATED);
 
 define('AUTO_API_KEY', '~/.yt_api_key');
+define('AUTO_COOKIE_FILE', '~/.yt_cookies');
 define('DOWNLOAD_SIMULATION_MODE', false);
 define('DEFAULT_SEARCH_ORDER', 'relevance');
 define('DEFAULT_SEARCH_MAXRESULTS', 10);
@@ -115,6 +51,7 @@ $extra_args =
               '-i ' . // continue upon download errors
               '-c ';  // resume partially downloaded video files
 $default_template = '%(title)s-%(id)s.%(ext)s';
+$cookie_file = AUTO_COOKIE_FILE;
 
 // Parse arguments
 // We do not use getopt() at the moment, because the important functionality "optind" is only available in PHP 7.1, which is not yet distributed with most of the stable Linux distros
@@ -157,6 +94,10 @@ while (count($argv_bak) > 0) {
 		array_shift($argv_bak);
 		if (count($rest_args) > 0) syntax_error("Invalid argument: ".$rest_args[0]);
 		$apikey = file_exists($m[3]) ? trim(file_get_contents($m[3])) : $m[3];
+	} else if (preg_match('@^(\-\-cookies)(\s+|=)(.*)$@s', $arg2, $m)) {
+		array_shift($argv_bak);
+		if (count($rest_args) > 0) syntax_error("Invalid argument: ".$rest_args[0]);
+		$cookie_file = file_exists($m[3]) ? trim(file_get_contents($m[3])) : $m[3];
 	} else if (preg_match('@^(/X|\-X|\-\-extra-args)(\s+|=)(.*)$@s', $arg2, $m)) {
 		array_shift($argv_bak);
 		if (count($rest_args) > 0) syntax_error("Invalid argument: ".$rest_args[0]);
@@ -200,6 +141,9 @@ if ((substr($type,0,2) != 'a:') && (substr($type,0,2) != 'v:')) syntax_error("Ty
 if (count($rest_args) == 0) syntax_error("Please enter at least one desired video for downloading");
 
 if ($failTreshold <= 0) syntax_error("Fail treshold has invalid value. Must be >0.");
+
+$cookie_file = expand_tilde($cookie_file);
+if (!file_exists($cookie_file)) $cookie_file = '';
 
 // Try to download/update youtube-dl into local directory
 
@@ -433,6 +377,10 @@ function ytdwn_channel_id($channel_id, $search='') {
 
 	// Now download
 
+	if (!$out[$key]['results']) {
+		fwrite(STDERR, "Cannot get result for channel with ID '$channel_id'\n");
+		return;
+	}
 	foreach ($out[$key]['results'] as list($id, $title)) {
 		if ($verbose) echo "Downloading '$title' as ".hf_type($type)." ...\n";
 		ytdwn_video_id($id);
@@ -483,6 +431,10 @@ function ytdwn_playlist_id($playlist_id) {
 
 	// Now download
 
+	if (!$out[$key]['results']) {
+		fwrite(STDERR, "Cannot get result for playlist with ID '$playlist_id'\n");
+		return;
+	}
 	foreach ($out[$key]['results'] as list($id, $title)) {
 		if ($verbose) echo "Downloading '$title' as ".hf_type($type)." ...\n";
 		ytdwn_video_id($id);
@@ -501,6 +453,10 @@ function ytdwn_search($search, $order='', $maxresults=-1) {
 
 	// Now download
 
+	if (!$results) {
+		fwrite(STDERR, "Cannot get data for search '$search'\n");
+		return;
+	}
 	foreach ($results as list($id, $title)) {
 		if ($verbose) echo "Downloading '$title' as ".hf_type($type)." ...\n";
 		ytdwn_video_id($id);
@@ -514,6 +470,7 @@ function ytdwn_video_id($video_id) {
 	global $extra_args;
 	global $default_template;
 	global $failTreshold;
+	global $cookie_file;
 
 	if (DOWNLOAD_SIMULATION_MODE) {
 		echo "SIMULATE download of video id $video_id as ".hf_type($type)." to "._getOutputDir()."\n";
@@ -538,16 +495,16 @@ function ytdwn_video_id($video_id) {
 	if (substr($type,0,2) == 'v:') {
 		$format = substr($type,2);
 		if (!empty($format)) {
-			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.' '.escapeshellarg(vid_to_vurl($video_id)).' --format '.escapeshellarg($format), $out, $code);
+			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)).' --format '.escapeshellarg($format), $out, $code);
 		} else {
-			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.' '.escapeshellarg(vid_to_vurl($video_id)), $out, $code);
+			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)), $out, $code);
 		}
 	} else if (substr($type,0,2) == 'a:') {
 		$format = substr($type,2);
 		if (!empty($format)) {
-			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.' '.escapeshellarg(vid_to_vurl($video_id)).' --extract-audio --audio-format '.escapeshellarg($format), $out, $code);
+			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)).' --extract-audio --audio-format '.escapeshellarg($format), $out, $code);
 		} else {
-			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.' '.escapeshellarg(vid_to_vurl($video_id)).' --extract-audio', $out, $code);
+			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)).' --extract-audio', $out, $code);
 		}
 		if (($mp3id_transfer) && ($format == 'mp3')) mp3_transfer_vid_to_id();
 	} else assert(false);

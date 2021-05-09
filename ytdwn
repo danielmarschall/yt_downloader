@@ -2,9 +2,9 @@
 <?php
 
 // ViaThinkSoft YouTube Downloader Util 2.2
-// Revision: 2020-07-25
+// Revision: 2021-05-09
 // Author: Daniel Marschall <www.daniel-marschall.de>
-// Licensed under the terms of the Apache 2.0 license
+// Licensed under the terms of the Apache 2.0 License
 //
 // For syntax and other documentation, please read the file README.
 
@@ -57,11 +57,12 @@ $cookie_file = AUTO_COOKIE_FILE;
 // We do not use getopt() at the moment, because the important functionality "optind" is only available in PHP 7.1, which is not yet distributed with most of the stable Linux distros
 
 $init_extra_args = false;
-$argv_bak = $argv;
+$argv_bak = $_SERVER['argv'];
 array_shift($argv_bak);
 while (count($argv_bak) > 0) {
 	$arg = array_shift($argv_bak);
 	$arg2 = $arg . ' ' . (isset($argv_bak[0]) ? $argv_bak[0] : '');
+	$m = null;
 	if (preg_match('@^(/t|\-t|\-\-type)(\s+|=)(.*)$@s', $arg2, $m)) {
 		array_shift($argv_bak);
 		if (count($rest_args) > 0) syntax_error("Invalid argument: ".$rest_args[0]);
@@ -225,6 +226,7 @@ function ytdwn_handle_resource($resourceType, $resourceValue) {
 	} else if ($resourceType == 'cid') {
 		$channel_id = parse_quoting($resourceValue);
 
+		$m = null;
 		if (preg_match('@\[search=(.+)\]@ismU', $channel_id, $m)) {
 			$search = $m[1];
 			$channel_id = preg_replace('@\[search=(.+)\]@ismU', '', $channel_id);
@@ -237,6 +239,7 @@ function ytdwn_handle_resource($resourceType, $resourceValue) {
 	} else if ($resourceType == 'cname') {
 		$channel_name = parse_quoting($resourceValue);
 
+		$m = null;
 		if (preg_match('@\[search=(.+)\]@ismU', $channel_name, $m)) {
 			$search = $m[1];
 			$channel_name = preg_replace('@\[search=(.+)\]@ismU', '', $channel_name);
@@ -255,6 +258,7 @@ function ytdwn_handle_resource($resourceType, $resourceValue) {
 	} else if ($resourceType == 'curl') {
 		$channel_url = parse_quoting($resourceValue);
 
+		$m = null;
 		if (preg_match('@\[search=(.+)\]@ismU', $channel_url, $m)) {
 			$search = $m[1];
 			$channel_url = preg_replace('@\[search=(.+)\]@ismU', '', $channel_url);
@@ -274,6 +278,7 @@ function ytdwn_handle_resource($resourceType, $resourceValue) {
 		$searchterm = parse_quoting($resourceValue);
 
 		$order = '';
+		$m = null;
 		if (preg_match('@\[order=(.+)\]@ismU', $searchterm, $m)) {
 			$order = $m[1];
 			$searchterm = preg_replace('@\[order=(.+)\]@ismU', '', $searchterm);
@@ -534,7 +539,7 @@ function ytdwn_video_id($video_id) {
 }
 
 function vid_to_vurl($video_id) {
-	return "http://www.youtube.com/watch/?v=$video_id";
+	return "https://www.youtube.com/watch?v=$video_id";
 }
 
 function EndsWith($Haystack, $Needle){
@@ -558,12 +563,14 @@ function mp3_transfer_vid_to_id() {
 	$allok = true;
 	$files = glob(rtrim(_getOutputDir(), '/').'/*-???????????.mp3');
 	foreach ($files as $filename) {
+		$m = null;
 		if (!preg_match('@-([a-zA-Z0-9\-_]{11})\.mp3$@ismU', $filename, $m)) continue;
 		$yt_id = $m[1];
 
 		if (!yt_check_video_id($yt_id)) continue; // just to be sure
 
 		$orig_ts = filemtime($filename);
+		$ec = -1;
 		system('id3v2 -c '.escapeshellarg($yt_id).' '.escapeshellarg($filename), $ec);
 		touch($filename, $orig_ts);
 		if ($ec != 0) {
@@ -583,6 +590,7 @@ function mp3_transfer_vid_to_id() {
 }
 
 function curl_to_cid($channel_url) {
+	$m = null;
 	if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/user/(.*)(&|\\?)@ismU", $channel_url.'&', $m)) {
 		$username = $m[2];
 		$channel_id = yt_get_channel_id($username);
@@ -620,6 +628,7 @@ function _help() {
 	$out = '';
 	$own = file_get_contents($argv[0]);
 	$help = explode('// ----', $own, 2)[0];
+	$m = null;
 	$help = preg_match_all('@^//(.*)$@mU', $help, $m);
 	foreach ($m[1] as $line) {
 		$out .= substr($line,1)."\n";
@@ -823,6 +832,7 @@ function ytdwn_register_fail($type, $video_id, $code) {
 
 	$file = _getFailList();
 	$cont = file_get_contents($file);
+	$m = null;
 	if (preg_match("@Video ID ".preg_quote($video_id,'@')." failed (\d+) time\(s\) with type ".preg_quote($type,'@')."@ismU", $cont, $m)) {
 		$cont = preg_replace("@Video ID ".preg_quote($video_id,'@')." failed (\d+) time\(s\) with type ".preg_quote($type,'@')."@ismU",
 		                     "Video ID $video_id failed ".($m[1]+1)." time(s) with type $type", $cont);
@@ -835,6 +845,7 @@ function ytdwn_register_fail($type, $video_id, $code) {
 function ytdwn_fail_counter($type, $video_id) {
 	$file = _getFailList();
 	$cont = file_get_contents($file);
+	$m = null;
 	if (preg_match("@Video ID ".preg_quote($video_id,'@')." failed (\d+) time\(s\) with type ".preg_quote($type,'@')."@ismU", $cont, $m)) {
 		return $m[1];
 	} else {
@@ -862,6 +873,7 @@ function get_latest_ytdl_md5sum() {
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 	$cont = curl_exec($ch);
+	$m = null;
 	if (preg_match('@^(.+)  youtube\-dl$@ismU', $cont, $m)) {
 		return $m[1];
 	} else {

@@ -1,9 +1,9 @@
 <?php
 
 // ViaThinkSoft YouTube Downloader Functions 2.1
-// Revision: 2018-05-21
+// Revision: 2021-05-09
 // Author: Daniel Marschall <www.daniel-marschall.de>
-// Licensed under the terms of GPLv3
+// Licensed under the terms of the Apache 2.0 License
 
 // Get API key:   https://console.developers.google.com/apis/credentials
 // Test API here: https://developers.google.com/apis-explorer/?hl=de#p/youtube/v3/youtube.playlistItems.list
@@ -177,17 +177,22 @@ function yt_search_items($searchterms, $order='', $maxresults=-1) {
 
 function getVideoIDFromURL($url) {
 	// Extract video ID from the URL
-	// TODO: are there more formats?
 
 	$vid = false;
+	$m = null;
 
 	# Usual format
-	if (($vid === false) && (preg_match("@https{0,1}://(www\\.|)youtube\\.com/watch(.*)(&|\\?)v=(.+)&@ismU", $url.'&', $m))) {
+	if (($vid === false) && (preg_match("@https{0,1}://(www\\.|)youtube\\.com/watch(.*)(&|\\?)v=([a-zA-Z0-9_-]{11})@ismU", $url, $m))) {
 		$vid = $m[4];
 	}
 
 	# Short format
-	if (($vid === false) && (preg_match("@https{0,1}://(www\\.|)youtu\\.be/(.+)\$@ismU", $url, $m))) {
+	if (($vid === false) && (preg_match("@https{0,1}://(www\\.|)youtu\\.be/([a-zA-Z0-9_-]{11}))@ismU", $url, $m))) {
+		$vid = $m[2];
+	}
+
+	# YouTube "Shorts"
+	if (($vid === false) && (preg_match("@https{0,1}://(www\\.|)youtube\\.com/shorts/([a-zA-Z0-9_-]{11})@ismU", $url, $m))) {
 		$vid = $m[2];
 	}
 
@@ -198,6 +203,7 @@ function getPlaylistIDFromURL($url) {
 	$pid = false;
 
 	# Usual format
+	$m = null;
 	if (($pid === false) && (preg_match("@https{0,1}://(www\\.|)youtube\\.com/(.*)(&|\\?)list=(.+)&@ismU", $url.'&', $m))) {
 		$pid = $m[4];
 	}

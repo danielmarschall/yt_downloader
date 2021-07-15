@@ -2,7 +2,7 @@
 <?php
 
 // ViaThinkSoft YouTube Downloader Util 2.2
-// Revision: 2021-05-09
+// Revision: 2021-07-15
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 //
@@ -270,7 +270,7 @@ function ytdwn_handle_resource($resourceType, $resourceValue) {
 		$channel_url = parse_quoting($channel_url);
 		$channel_id = curl_to_cid($channel_url);
 		if (!$channel_id) {
-			fwrite(STDERR, "URL $channel_url is a valid YouTube channel oder username URL. Skipping\n");
+			fwrite(STDERR, "URL $channel_url is a valid YouTube channel or username URL. Skipping\n");
 		} else {
 			ytdwn_channel_id($channel_id, $search);
 		}
@@ -591,11 +591,11 @@ function mp3_transfer_vid_to_id() {
 
 function curl_to_cid($channel_url) {
 	$m = null;
-	if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/user/(.*)(&|\\?)@ismU", $channel_url.'&', $m)) {
+	if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/user/(.*)(/|&|\\?)@ismU", $channel_url.'&', $m)) {
 		$username = $m[2];
 		$channel_id = yt_get_channel_id($username);
 		return $channel_id;
-	} else if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/channel/(.*)(&|\\?)@ismU", $channel_url.'&', $m)) {
+	} else if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/channel/(.*)(/|&|\\?)@ismU", $channel_url.'&', $m)) {
 		$channel_id = $m[2];
 		return $channel_id;
 	} else {

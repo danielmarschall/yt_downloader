@@ -1,7 +1,7 @@
 <?php
 
 // ViaThinkSoft YouTube Downloader Functions 2.1
-// Revision: 2021-05-09
+// Revision: 2021-07-15
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 
@@ -49,6 +49,8 @@ function yt_playlist_items($playlist_id, $maxresults=-1) {
 		$obj = json_decode($cont, true);
 		if (!$obj) return false;
 
+		if (!isset($obj['items'])) return false;
+
 		foreach ($obj['items'] as $item) {
 			if ($item['snippet']['resourceId']['kind'] == 'youtube#video') {
 				$title    = $item['snippet']['title'];
@@ -71,6 +73,8 @@ function yt_get_channel_id($username) {
 	$obj = json_decode($cont, true);
 	if (!$obj) return false;
 
+	if (!isset($obj['items'])) return false;
+
 	foreach ($obj['items'] as $item) {
 		if ($item['kind'] == 'youtube#channel') {
 			return $item['id'];
@@ -84,6 +88,8 @@ function yt_get_channel_id_and_stats($username) {
 
 	$obj = json_decode($cont, true);
 	if (!$obj) return false;
+
+	if (!isset($obj['items'])) return false;
 
 	foreach ($obj['items'] as $item) {
 		if ($item['kind'] == 'youtube#channel') {
@@ -99,6 +105,8 @@ function yt_get_channel_stats($channel_id) {
 	$obj = json_decode($cont, true);
 	if (!$obj) return false;
 
+	if (!isset($obj['items'])) return false; //totalResults could be 0
+
 	foreach ($obj['items'] as $item) {
 		if ($item['kind'] == 'youtube#channel') {
 			return $item['statistics'];
@@ -112,6 +120,8 @@ function yt_get_playlist_stats($playlist_id) {
 
 	$obj = json_decode($cont, true);
 	if (!$obj) return false;
+
+	if (!isset($obj['items'])) return false;
 
 	foreach ($obj['items'] as $item) {
 		if ($item['kind'] == 'youtube#playlist') {
@@ -131,6 +141,8 @@ function yt_channel_items($channel_id, $searchterms='', $maxresults=-1) {
 
 		$obj = json_decode($cont, true);
 		if (!$obj) return false;
+
+		if (!isset($obj['items'])) return false;
 
 		foreach ($obj['items'] as $item) {
 			if ($item['id']['kind'] == 'youtube#video') {
@@ -160,6 +172,8 @@ function yt_search_items($searchterms, $order='', $maxresults=-1) {
 		$obj = json_decode($cont, true);
 		if (!$obj) return false;
 
+		if (!isset($obj['items'])) return false;
+
 		foreach ($obj['items'] as $item) {
 			if ($item['id']['kind'] == 'youtube#video') {
 				$title    = $item['snippet']['title'];
@@ -182,7 +196,7 @@ function getVideoIDFromURL($url) {
 	$m = null;
 
 	# Usual format
-	if (($vid === false) && (preg_match("@https{0,1}://(www\\.|)youtube\\.com/watch(.*)(&|\\?)v=([a-zA-Z0-9_-]{11})@ismU", $url, $m))) {
+	if (($vid === false) && (preg_match("@https{0,1}://(www\\.|)youtube\\.com/watch(.*)(/|&|\\?)v=([a-zA-Z0-9_-]{11})@ismU", $url, $m))) {
 		$vid = $m[4];
 	}
 
@@ -204,7 +218,7 @@ function getPlaylistIDFromURL($url) {
 
 	# Usual format
 	$m = null;
-	if (($pid === false) && (preg_match("@https{0,1}://(www\\.|)youtube\\.com/(.*)(&|\\?)list=(.+)&@ismU", $url.'&', $m))) {
+	if (($pid === false) && (preg_match("@https{0,1}://(www\\.|)youtube\\.com/(.*)(/|&|\\?)list=(.+)&@ismU", $url.'&', $m))) {
 		$pid = $m[4];
 	}
 

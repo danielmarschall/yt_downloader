@@ -348,6 +348,10 @@ function ytdwn_channel_id($channel_id, $search='') {
 
 	if (!empty(_getResultcache())) {
 		$stats = yt_get_channel_stats($channel_id);
+		if ($stats === false) {
+			fwrite(STDERR, "Cannot get stats for channel with ID '$channel_id'\n");
+			return;
+		}
 		$videocount = $stats['videoCount'];
 
 		$key = (!empty($search)) ? 'cid:'.$channel_id.'/'.$search : 'cid:'.$channel_id;
@@ -406,6 +410,10 @@ function ytdwn_playlist_id($playlist_id) {
 
 	if (!empty(_getResultcache())) {
 		$stats = yt_get_playlist_stats($playlist_id);
+		if ($stats === false) {
+			fwrite(STDERR, "Cannot get stats for playlist with ID '$channel_id'\n");
+			return;
+		}
 		$videocount = $stats['itemCount'];
 
 		$key = 'pid:'.$playlist_id;

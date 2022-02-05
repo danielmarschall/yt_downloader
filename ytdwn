@@ -2,7 +2,7 @@
 <?php
 
 // ViaThinkSoft YouTube Downloader Util 2.2
-// Revision: 2021-07-15
+// Revision: 2022-02-05
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 //
@@ -595,8 +595,8 @@ function curl_to_cid($channel_url) {
 		$username = $m[2];
 		$channel_id = yt_get_channel_id($username);
 		return $channel_id;
-	} else if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/channel/(.*)(/|&|\\?)@ismU", $channel_url.'&', $m)) {
-		$channel_id = $m[2];
+	} else if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/(channel|c)/(.*)(/|&|\\?)@ismU", $channel_url.'&', $m)) {
+		$channel_id = $m[3];
 		return $channel_id;
 	} else {
 		return false;

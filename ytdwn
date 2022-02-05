@@ -411,7 +411,7 @@ function ytdwn_playlist_id($playlist_id) {
 	if (!empty(_getResultcache())) {
 		$stats = yt_get_playlist_stats($playlist_id);
 		if ($stats === false) {
-			fwrite(STDERR, "Cannot get stats for playlist with ID '$channel_id'\n");
+			fwrite(STDERR, "Cannot get stats for playlist with ID '$playlist_id'\n");
 			return;
 		}
 		$videocount = $stats['itemCount'];
@@ -791,7 +791,7 @@ function _getOutputDir() {
 
 	if ($allow_creation_outputdir) {
 		if (!is_dir($out)) {
-			mkdir($out, true);
+			mkdir($out, 0777, true);
 			if (!is_dir($out)) {
 				fwrite(STDERR, "Output directory '$out' does not exist.\n");
 				exit(1);

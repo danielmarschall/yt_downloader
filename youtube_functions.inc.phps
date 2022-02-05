@@ -201,7 +201,7 @@ function getVideoIDFromURL($url) {
 	}
 
 	# Short format
-	if (($vid === false) && (preg_match("@https{0,1}://(www\\.|)youtu\\.be/([a-zA-Z0-9_-]{11}))@ismU", $url, $m))) {
+	if (($vid === false) && (preg_match("@https{0,1}://(www\\.|)youtu\\.be/([a-zA-Z0-9_-]{11})@ismU", $url, $m))) {
 		$vid = $m[2];
 	}
 

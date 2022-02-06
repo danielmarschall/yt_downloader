@@ -2,7 +2,7 @@
 <?php
 
 // ViaThinkSoft YouTube Downloader Util 2.2
-// Revision: 2022-02-05
+// Revision: 2022-02-06
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 //
@@ -159,8 +159,13 @@ if (!$newest_version_md5) {
 		} else {
 			echo "Trying to download 'youtube-dl' into local directory...\n";
 		}
-		if (!@file_put_contents(__DIR__.'/youtube-dl', file_get_contents('https://yt-dl.org/downloads/latest/youtube-dl'))) {
+
+		@chmod(__DIR__.'/youtube-dl', 0777); // otherwise we might not be able to write to it
+
+		if (!($binary = file_get_contents('https://yt-dl.org/latest/youtube-dl'))) {
 			fwrite(STDERR, "Failed to download 'youtube-dl' into local directory (file_get_contents).\n");
+		} else if (!@file_put_contents(__DIR__.'/youtube-dl', $binary)) {
+			fwrite(STDERR, "Failed to download 'youtube-dl' into local directory (file_put_contents).\n");
 		} else {
 			if (!@chmod(__DIR__.'/youtube-dl', 0544)) {
 				fwrite(STDERR, "Failed to download 'youtube-dl' into local directory (chmod 544).\n");
@@ -251,10 +256,9 @@ function ytdwn_handle_resource($resourceType, $resourceValue) {
 		$channel_name = parse_quoting($channel_name);
 		$channel_id = yt_get_channel_id($channel_name);
 		if (!$channel_id) {
-			fwrite(STDERR, "URL $channel_name is a valid YouTube channel or username. Skipping.\n");
-		} else {
-			ytdwn_channel_id($channel_id, $search);
+			fwrite(STDERR, "URL $channel_name is a valid YouTube username. Will now try to interprete it as channel ID instead....\n");
 		}
+		ytdwn_channel_id($channel_id, $search);
 	} else if ($resourceType == 'curl') {
 		$channel_url = parse_quoting($resourceValue);
 
@@ -598,17 +602,7 @@ function mp3_transfer_vid_to_id() {
 }
 
 function curl_to_cid($channel_url) {
-	$m = null;
-	if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/user/(.*)(/|&|\\?)@ismU", $channel_url.'&', $m)) {
-		$username = $m[2];
-		$channel_id = yt_get_channel_id($username);
-		return $channel_id;
-	} else if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/(channel|c)/(.*)(/|&|\\?)@ismU", $channel_url.'&', $m)) {
-		$channel_id = $m[3];
-		return $channel_id;
-	} else {
-		return false;
-	}
+	return yt_get_channel_id_from_url($channel_url);
 }
 
 function in_alreadydownloaded_file($type, $video_id) {

@@ -1,7 +1,7 @@
 <?php
 
 // ViaThinkSoft YouTube Downloader Functions 2.1
-// Revision: 2021-07-15
+// Revision: 2022-02-06
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 
@@ -231,6 +231,47 @@ function yt_check_apikey_syntax($apikey) {
 
 function yt_check_video_id($video_id) {
 	return preg_match('@^[a-zA-Z0-9\-_]{11}$@', $video_id);
+}
+
+function yt_get_channel_id_from_custom_url($custom_url) {
+	// TODO: is there any API possibility??? API only accepts username and id ?!
+
+	// https://www.youtube.com/c/SASASMR
+	// <link rel="canonical" href="https://www.youtube.com/channel/UCp4LfMtDfoa29kTlLnqQ5Mg">
+	// https://www.youtube.com/impaulsive
+	// <link rel="canonical" href="https://www.youtube.com/channel/UCGeBogGDZ9W3dsGx-mWQGJA">
+
+	$cont = file_get_contents($custom_url);
+	if ($cont === false) {
+		throw new Exception("Cannot open $custom_url using file_get_contents.");
+	}
+	if (!preg_match('@<link rel="canonical" href="https://www.youtube.com/channel/([^"]+)">@ismU', $cont, $m)) {
+		return false;
+	}
+
+	return $m[1];
+}
+
+function yt_get_channel_id_from_url($channel_url) {
+	$m = null;
+	if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/user/(.*)(/|&|\\?)@ismU", $channel_url.'&', $m)) {
+		// Username (deprecated feature. Not every channel has a username associated with it)
+		// https://www.youtube.com/user/USERNAME
+		$username = $m[2];
+		$channel_id = yt_get_channel_id($username);
+		return $channel_id;
+	} else if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/channel/(.*)(/|&|\\?)@ismU", $channel_url.'&', $m)) {
+		// Real channel ID
+		// https://www.youtube.com/channel/ID
+		$channel_id = $m[2];
+		return $channel_id;
+	} else if (preg_match("@https{0,1}://(www\\.|)youtube\\.com/(c/){0,1}(.*)(/|&|\\?)@ismU", $channel_url.'&', $m)) {
+		// Channel custom URL
+		// https://www.youtube.com/NAME or https://www.youtube.com/c/NAME
+		return yt_get_channel_id_from_custom_url($channel_url);
+	} else {
+		return false;
+	}
 }
 
 // Examples:

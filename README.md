@@ -1,5 +1,5 @@
 
-# ViaThinkSoft YouTube Downloader Util 2.2
+# ViaThinkSoft YouTube Downloader Util 2.3
 
 ## Syntax
 
@@ -13,6 +13,8 @@
             [-h|--help]                 (shows help)
             [-N|--no-mp3-tagtransfer]   (disables transfer of video ID to MP3 ID tag)
                                         (This feature requires the package "id3v2")
+            [-H|--checksumMode]         (Which checksum files shall be written for new files.
+                                        Must be 'None', 'MD5', 'SFV', or 'MD5,SFV')
             [-T|--default-template <t>] (Sets default filename template.)
                                         (Default: '%(title)s-%(id)s.%(ext)s')
             [-X|--extra-args <args>]    (Additional arguments passed through)

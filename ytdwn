@@ -1,7 +1,7 @@
 #!/usr/bin/php
 <?php
 
-// ViaThinkSoft YouTube Downloader Util 2.2
+// ViaThinkSoft YouTube Downloader Util 2.3
 // Revision: 2022-02-06
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
@@ -21,6 +21,7 @@ define('DEFAULT_SEARCH_MAXRESULTS', 10);
 putenv("LANG=de_DE.UTF-8"); // required if video titles contain non-ASCII symbols
 
 require_once __DIR__ . '/youtube_functions.inc.phps';
+require_once __DIR__ . '/checksum_functions.inc.phps';
 
 // Check if we are running in command line
 
@@ -39,6 +40,7 @@ $allow_creation_outputdir = false;
 $type = 'v:';
 $outputDir = '';
 $alreadyDownloaded = '';
+$checksumMode = 'none';
 $failList = '';
 $failTreshold = 3;
 $rest_args = array();
@@ -87,6 +89,15 @@ while (count($argv_bak) > 0) {
 		array_shift($argv_bak);
 		if (count($rest_args) > 0) syntax_error("Invalid argument: ".$rest_args[0]);
 		$resultcache = $m[3];
+	} else if (preg_match('@^(/H|\-H|\-\-checksumMode)(\s+|=)(.*)$@s', $arg2, $m)) {
+		array_shift($argv_bak);
+		if (count($rest_args) > 0) syntax_error("Invalid argument: ".$rest_args[0]);
+		$checksumMode = $m[3];
+		if ((strtolower($checksumMode) != 'none')
+			&& (strtolower($checksumMode) != 'sfv')
+			&& (strtolower($checksumMode) != 'md5')
+			&& (strtolower($checksumMode) != 'sfv,md5')
+			&& (strtolower($checksumMode) != 'md5,sfv')) syntax_error("Checksum mode needs to be either 'None', 'MD5', 'SFV', or 'MD5,SFV'.");
 	} else if (preg_match('@^(/T|\-T|\-\-default-template)(\s+|=)(.*)$@s', $arg2, $m)) {
 		array_shift($argv_bak);
 		if (count($rest_args) > 0) syntax_error("Invalid argument: ".$rest_args[0]);
@@ -488,6 +499,7 @@ function ytdwn_video_id($video_id) {
 	global $default_template;
 	global $failTreshold;
 	global $cookie_file;
+	global $checksumMode;
 
 	if (DOWNLOAD_SIMULATION_MODE) {
 		echo "SIMULATE download of video id $video_id as ".hf_type($type)." to "._getOutputDir()."\n";
@@ -532,7 +544,19 @@ function ytdwn_video_id($video_id) {
 			try {
 				addto_alreadydownloaded_file($type, $video_id);
 			} catch(Exception $e) {
-				fwrite(STDERR, "Cannot add to already downloaded file\n");
+				fwrite(STDERR, "Cannot add to 'already downloaded' file\n");
+			}
+		}
+
+		// Now do the checksums
+		foreach (explode(',',$checksumMode) as $mode) {
+			$test = glob(rtrim(_getOutputDir(), '/').'/*-'.$video_id.'.*');
+			if (count($test) == 0) {
+				fwrite(STDERR, "Cannot determine output file name.\n");
+			}
+			$written_file = $test[0];
+			if (!cs_add_automatically($written_file, $mode)) {
+				fwrite(STDERR, "Could not write to '$mode' checksum file!\n");
 			}
 		}
 	} else {

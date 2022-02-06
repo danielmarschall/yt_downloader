@@ -1,6 +1,6 @@
 <?php
 
-// ViaThinkSoft YouTube Downloader Functions 2.1
+// ViaThinkSoft YouTube Downloader Functions 2.3
 // Revision: 2022-02-06
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License

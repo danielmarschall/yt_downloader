@@ -2,7 +2,7 @@
 <?php
 
 // ViaThinkSoft YouTube Downloader Util 2.3
-// Revision: 2022-02-06
+// Revision: 2022-02-07
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 //
@@ -491,6 +491,26 @@ function ytdwn_search($search, $order='', $maxresults=-1) {
 	}
 }
 
+function template_to_wildcard($template, $video_id) {
+	$x = $template;
+	$x = str_replace('%(id)s', $video_id, $x);
+	$x = preg_replace('@%\\(.+\\)s@ismU', '*', $x);
+	$x = preg_replace('@\\*+@', '*', $x);
+	return $x;
+}
+
+function ytdwn_get_downloaded_filename($outputTemplate, $video_id) {
+	if (strpos($outputTemplate, '%(id)s') === false) {
+		// TODO: There needs to be a better way to find out the written file name !!!
+		return false;
+	} else {
+		$wildcard = template_to_wildcard($outputTemplate, $video_id);
+		$test = glob($wildcard);
+		if (count($test) == 0) return false;
+		return $test[0];
+	}
+}
+
 function ytdwn_video_id($video_id) {
 	global $type;
 	global $verbose;
@@ -528,6 +548,9 @@ function ytdwn_video_id($video_id) {
 		} else {
 			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)), $out, $code);
 		}
+
+		$written_file = $code == 0 ? ytdwn_get_downloaded_filename($outputTemplate, $video_id) : false;
+
 	} else if (substr($type,0,2) == 'a:') {
 		$format = substr($type,2);
 		if (!empty($format)) {
@@ -535,11 +558,26 @@ function ytdwn_video_id($video_id) {
 		} else {
 			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)).' --extract-audio', $out, $code);
 		}
-		if (($mp3id_transfer) && ($format == 'mp3')) mp3_transfer_vid_to_id();
-	} else assert(false);
+
+		$written_file = $code == 0 ? ytdwn_get_downloaded_filename($outputTemplate, $video_id) : false;
+
+		if (($code == 0) && ($mp3id_transfer) && (strtolower($format) == 'mp3')) {
+			if ($written_file === false) {
+				fwrite(STDERR, "Cannot include YouTube ID to MP3, because the default template does not contain '%(id)s', or the downloaded file could not be determined for another reason.\n");
+			} else {
+				mp3_transfer_vid_to_id($written_file, $video_id);
+			}
+		}
+	} else {
+		assert(false);
+		return false;
+	}
 
 	if ($code == 0) {
-		if ($verbose) fwrite(STDOUT, "Successfully downloaded video ID $video_id as ".hf_type($type)."\n");
+		if ($verbose) {
+			fwrite(STDOUT, "Successfully downloaded video ID $video_id as ".hf_type($type)."\n");
+			if ($written_file !== false) fwrite(STDOUT, "Output file name: $written_file\n");
+		}
 		if (!empty(_getAlreadyDownloaded())) {
 			try {
 				addto_alreadydownloaded_file($type, $video_id);
@@ -550,12 +588,10 @@ function ytdwn_video_id($video_id) {
 
 		// Now do the checksums
 		foreach (explode(',',$checksumMode) as $mode) {
-			$test = glob(rtrim(_getOutputDir(), '/').'/*-'.$video_id.'.*');
-			if (count($test) == 0) {
-				fwrite(STDERR, "Cannot determine output file name.\n");
-			}
-			$written_file = $test[0];
-			if (!cs_add_automatically($written_file, $mode)) {
+			if (strtolower($mode) === 'none') continue;
+			if ($written_file === false) {
+				fwrite(STDERR, "Cannot add to the '$mode' checksum file, because the default template does not contain '%(id)s', or the downloaded file could not be determined for another reason.\n");
+			} else if (!cs_add_automatically($written_file, $mode)) {
 				fwrite(STDERR, "Could not write to '$mode' checksum file!\n");
 			}
 		}
@@ -582,47 +618,47 @@ function EndsWith($Haystack, $Needle){
 	return strrpos($Haystack, $Needle) === strlen($Haystack)-strlen($Needle);
 }
 
-function mp3_transfer_vid_to_id() {
+function mp3_transfer_vid_to_id(&$written_file, $video_id) {
 	global $verbose;
 	global $default_template;
 
 	if (!command_exists('id3v2')) {
-		if ($verbose) echo "Note: Tool id3v2 is not installed. Will not transfer the YouTube ID into the MP3 ID Tag\n";
+		fwrite(STDERR, "Tool id3v2 is not installed. Will not transfer the YouTube ID into the MP3 ID Tag. Use paramter '-N' to stop trying the transfer.\n");
 		return false;
 	}
 
-	if (!EndsWith($default_template, '-%(id)s.%(ext)s'))  {
-		if ($verbose) echo "Note: Cannot transfer video tag to MP3 because default template does not end with '-%(id)s.%(ext)s'.\n";
+	$orig_ts = filemtime($written_file);
+	$ec = -1;
+	system('id3v2 -c '.escapeshellarg($video_id).' '.escapeshellarg($written_file), $ec);
+	touch($written_file, $orig_ts);
+	if ($ec != 0) {
+		fwrite(STDERR, "Cannot set ID tag for file $written_file\n");
 		return false;
 	}
 
-	$allok = true;
-	$files = glob(rtrim(_getOutputDir(), '/').'/*-???????????.mp3');
-	foreach ($files as $filename) {
-		$m = null;
-		if (!preg_match('@-([a-zA-Z0-9\-_]{11})\.mp3$@ismU', $filename, $m)) continue;
-		$yt_id = $m[1];
+	$target_filename = $written_file;
 
-		if (!yt_check_video_id($yt_id)) continue; // just to be sure
-
-		$orig_ts = filemtime($filename);
-		$ec = -1;
-		system('id3v2 -c '.escapeshellarg($yt_id).' '.escapeshellarg($filename), $ec);
-		touch($filename, $orig_ts);
-		if ($ec != 0) {
-			fwrite(STDERR, "Cannot set ID tag for file $filename\n");
-			$allok = false;
-			continue;
-		}
-
-		$target_filename = str_replace("-$yt_id.mp3", '.mp3', $filename);
-		if (!intelligent_rename($filename, $target_filename)) {
-			fwrite(STDERR, "Cannot move file $filename to $target_filename\n");
-			$allok = false;
-			continue;
-		}
+	// Things like '<title>-<id>.mp3' become '<title>.mp3' (our default template)
+	// But templates like '<title> (<id>).mp3' could become '<title> ().mp3', which is not nice
+	// So, we try our best to find the most common template types...
+	$target_filename = str_replace('-'.$video_id, '', $target_filename);
+	$target_filename = str_replace('_'.$video_id, '', $target_filename);
+	$target_filename = str_replace(' '.$video_id, '', $target_filename);
+	$target_filename = str_replace('('.$video_id.')', '', $target_filename);
+	$target_filename = str_replace('['.$video_id.']', '', $target_filename);
+	$target_filename = str_replace($video_id, '', $target_filename); // must be the last!
+	if ($target_filename === $written_file) {
+		fwrite(STDERR, "Could not remove VideoID from filename '$written_file'\n"); // should not happen
+		return false;
 	}
-	return $allok;
+
+	if (!intelligent_rename($written_file, $target_filename)) {
+		fwrite(STDERR, "Could not rename '$written_file' to '$target_filename'\n");
+		return false;
+	}
+
+	$written_file = $target_filename; // was modified by intelligent_rename()
+	return true;
 }
 
 function curl_to_cid($channel_url) {
@@ -879,7 +915,7 @@ function ytdwn_fail_counter($type, $video_id) {
 	}
 }
 
-function intelligent_rename($src, $dest) {
+function intelligent_rename($src, &$dest) {
 	$pos = strrpos($dest, '.');
 	$ext = substr($dest, $pos);
 	$namewoext = substr($dest, 0, $pos);
@@ -889,7 +925,9 @@ function intelligent_rename($src, $dest) {
 		$failcnt++;
 		$dest_neu = "$namewoext ($failcnt)$ext";
 	}
-	return rename($src, $dest_neu);
+	$res = rename($src, $dest_neu);
+	if ($res) $dest = $dest_neu;
+	return $res;
 }
 
 function get_latest_ytdl_md5sum() {

@@ -1,7 +1,7 @@
 <?php
 
 // ViaThinkSoft YouTube Downloader Util 2.3
-// Revision: 2022-02-06
+// Revision: 2022-02-07
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 
@@ -18,9 +18,10 @@ function cs_get_checksumfilename($file, $type='sfv') {
 }
 
 function cs_add_automatically($file, $type='sfv') {
+	$type = strtolower($type);
 	$cs_file = cs_get_checksumfilename($file, $type);
 	// echo "Checksum file: $cs_file\n";
-	if (strtolower($type) == 'sfv') {
+	if ($type == 'sfv') {
 		if (file_exists($cs_file)) {
 			$files = sfv_get_files($cs_file);
 			if (in_arrayi(basename($file), $files)) return true;
@@ -37,7 +38,7 @@ function cs_add_automatically($file, $type='sfv') {
 		file_put_contents($cs_file, basename($file)." $crc32\r\n", FILE_APPEND);
 		return true;
 	}
-	else if (strtolower($type) == 'md5') {
+	else if ($type == 'md5') {
 		if (file_exists($cs_file)) {
 			$files = md5_get_files($cs_file);
 			if (in_arrayi(basename($file), $files)) return true;
@@ -54,7 +55,7 @@ function cs_add_automatically($file, $type='sfv') {
 		file_put_contents($cs_file, "$md5 *".basename($file)."\r\n", FILE_APPEND);
 		return true;
 	}
-	else if (strtolower($type) == 'none') {
+	else if ($type == 'none') {
 		return true;
 	}
 	else {

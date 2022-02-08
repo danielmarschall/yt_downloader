@@ -43,8 +43,8 @@ function yt_playlist_items($playlist_id, $maxresults=-1) {
 	$next_page_token = '';
 
 	do {
-		$cont = file_get_contents('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId='.urlencode($playlist_id).'&maxResults=50'.(($next_page_token!='') ? '&pageToken='.urlencode($next_page_token) : '').'&key='.urlencode(yt_get_apikey()));
-		if (!$cont) return false;
+		$cont = @file_get_contents('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId='.urlencode($playlist_id).'&maxResults=50'.(($next_page_token!='') ? '&pageToken='.urlencode($next_page_token) : '').'&key='.urlencode(yt_get_apikey()));
+		if (!$cont) return false; // e.g. if Playlist was deleted
 
 		$obj = json_decode($cont, true);
 		if (!$obj) return false;
@@ -67,7 +67,7 @@ function yt_playlist_items($playlist_id, $maxresults=-1) {
 }
 
 function yt_get_channel_id($username) {
-	$cont = file_get_contents('https://www.googleapis.com/youtube/v3/channels?key='.urlencode(yt_get_apikey()).'&forUsername='.urlencode($username).'&part=id');
+	$cont = @file_get_contents('https://www.googleapis.com/youtube/v3/channels?key='.urlencode(yt_get_apikey()).'&forUsername='.urlencode($username).'&part=id');
 	if (!$cont) return false;
 
 	$obj = json_decode($cont, true);
@@ -83,7 +83,7 @@ function yt_get_channel_id($username) {
 }
 
 function yt_get_channel_id_and_stats($username) {
-	$cont = file_get_contents('https://www.googleapis.com/youtube/v3/channels?key='.urlencode(yt_get_apikey()).'&forUsername='.urlencode($username).'&part=id,statistics');
+	$cont = @file_get_contents('https://www.googleapis.com/youtube/v3/channels?key='.urlencode(yt_get_apikey()).'&forUsername='.urlencode($username).'&part=id,statistics');
 	if (!$cont) return false;
 
 	$obj = json_decode($cont, true);
@@ -99,7 +99,7 @@ function yt_get_channel_id_and_stats($username) {
 }
 
 function yt_get_channel_stats($channel_id) {
-	$cont = file_get_contents('https://www.googleapis.com/youtube/v3/channels?key='.urlencode(yt_get_apikey()).'&id='.urlencode($channel_id).'&part=statistics');
+	$cont = @file_get_contents('https://www.googleapis.com/youtube/v3/channels?key='.urlencode(yt_get_apikey()).'&id='.urlencode($channel_id).'&part=statistics');
 	if (!$cont) return false;
 
 	$obj = json_decode($cont, true);
@@ -115,7 +115,7 @@ function yt_get_channel_stats($channel_id) {
 }
 
 function yt_get_playlist_stats($playlist_id) {
-	$cont = file_get_contents('https://www.googleapis.com/youtube/v3/playlists?part=contentDetails&id='.urlencode($playlist_id).'&key='.urlencode(yt_get_apikey()));
+	$cont = @file_get_contents('https://www.googleapis.com/youtube/v3/playlists?part=contentDetails&id='.urlencode($playlist_id).'&key='.urlencode(yt_get_apikey()));
 	if (!$cont) return false;
 
 	$obj = json_decode($cont, true);
@@ -125,6 +125,7 @@ function yt_get_playlist_stats($playlist_id) {
 
 	foreach ($obj['items'] as $item) {
 		if ($item['kind'] == 'youtube#playlist') {
+			if (!isset($item['contentDetails']) || is_null($item['contentDetails'])) return false; // can happen to deleted playlists
 			return $item['contentDetails'];
 		}
 	}
@@ -136,7 +137,7 @@ function yt_channel_items($channel_id, $searchterms='', $maxresults=-1) {
 	$next_page_token = '';
 
 	do {
-		$cont = file_get_contents('https://www.googleapis.com/youtube/v3/search?part=snippet&channelId='.urlencode($channel_id).(($searchterms!='') ? '&q='.urlencode($searchterms) : '').'&maxResults=50'.(($next_page_token!='') ? '&pageToken='.urlencode($next_page_token) : '').'&key='.urlencode(yt_get_apikey()));
+		$cont = @file_get_contents('https://www.googleapis.com/youtube/v3/search?part=snippet&channelId='.urlencode($channel_id).(($searchterms!='') ? '&q='.urlencode($searchterms) : '').'&maxResults=50'.(($next_page_token!='') ? '&pageToken='.urlencode($next_page_token) : '').'&key='.urlencode(yt_get_apikey()));
 		if (!$cont) return false;
 
 		$obj = json_decode($cont, true);
@@ -166,7 +167,7 @@ function yt_search_items($searchterms, $order='', $maxresults=-1) {
 	$next_page_token = '';
 
 	do {
-		$cont = file_get_contents('https://www.googleapis.com/youtube/v3/search?part=snippet&q='.urlencode($searchterms).(($order!='') ? '&order='.urlencode($order) : '').'&maxResults=50'.(($next_page_token!='') ? '&pageToken='.urlencode($next_page_token) : '').'&key='.urlencode(yt_get_apikey()));
+		$cont = @file_get_contents('https://www.googleapis.com/youtube/v3/search?part=snippet&q='.urlencode($searchterms).(($order!='') ? '&order='.urlencode($order) : '').'&maxResults=50'.(($next_page_token!='') ? '&pageToken='.urlencode($next_page_token) : '').'&key='.urlencode(yt_get_apikey()));
 		if (!$cont) return false;
 
 		$obj = json_decode($cont, true);
@@ -241,7 +242,7 @@ function yt_get_channel_id_from_custom_url($custom_url) {
 	// https://www.youtube.com/impaulsive
 	// <link rel="canonical" href="https://www.youtube.com/channel/UCGeBogGDZ9W3dsGx-mWQGJA">
 
-	$cont = file_get_contents($custom_url);
+	$cont = @file_get_contents($custom_url);
 	if ($cont === false) {
 		throw new Exception("Cannot open $custom_url using file_get_contents.");
 	}

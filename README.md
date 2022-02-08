@@ -1,31 +1,44 @@
 
-# ViaThinkSoft YouTube Downloader Util 2.3
+# ViaThinkSoft YouTube Downloader 2.3.1
+
+YouTube Downloader is a tool for Linux. It is a wrapper for youtube-dl (or any compatible forks) and offers several additional functionalities.
+
+Special features:
+- Downloading of all videos of a channel or a playlist.
+- Automatic searching inside channels or globally (whole YouTube)
+- You can download videos and audio files.
+- YouTube-IDs can be automatically written in the ID tag of downloaded mp3 files.
+- An automatically managed list of already downloaded videos allows you to move away from the downloaded files without the risk of downloading the already downloaded files again.
+- An automatically managed list of failed downloads will avoid that a video, which is not available anymore, is tried to be downloaded too many times.
+- Creation of SFV and/or MD5 checksum files.
+- The tool is fully CLI and is optimized for cronjobs.
 
 ## Syntax
 
-    ./ytdwn [-t|--type v:[ext]|a:[ext]] (default v:)
-            [-o|--outputDir <dir>]      (default current working directory)
+    ./ytdwn [-t|--type v:[ext]|a:[ext]] Type video or audio and preferred output type, e.g. 'a:mp3' (default v:)
+            [-o|--outputDir <dir>]      Default current working directory
             [-a|--alreadyDownloaded <file>]
-            [-f|--failList <file> <treshold>]  (This file logs failures)
-            [-F|--failTreshold <num>]   (Don't download if failure (-f) treshold is reached. Default: 3)
-            [-V|--version]              (shows version)
-            [-v|--verbose]              (displays verbose information to STDOUT)
-            [-h|--help]                 (shows help)
-            [-N|--no-mp3-tagtransfer]   (disables transfer of video ID to MP3 ID tag)
-                                        (This feature requires the package "id3v2")
-            [-H|--checksumMode]         (Which checksum files shall be written for new files.
-                                        Must be 'None', 'MD5', 'SFV', or 'MD5,SFV')
-            [-T|--default-template <t>] (Sets default filename template.)
+            [-f|--failList <file> <treshold>]  This file logs failures.
+            [-F|--failTreshold <num>]   Don't download if failure (-f) treshold is reached. (Default: 3)
+            [-V|--version]              Shows the version
+            [-v|--verbose]              Displays verbose information to STDOUT
+            [-h|--help]                 Shows the help page.
+            [-N|--no-mp3-tagtransfer]   Disables transfer of video ID to MP3 ID tag.
+                                        This feature requires the package "id3v2".
+            [-H|--checksumMode]         Which checksum files shall be written for new files.
+                                        Must be 'None', 'MD5', 'SFV', or 'MD5,SFV'.
+            [-T|--default-template <t>] Sets default filename template.
                                         (Default: '%(title)s-%(id)s.%(ext)s')
-            [-X|--extra-args <args>]    (Additional arguments passed through)
-                                        (youtube-dl. Default "-ic")
-            [-A|--api-key <file|key>]   (specifies the API key, or a file containing the API key)
+            [-X|--extra-args <args>]    Additional arguments passed through youtube-dl. (Default "-ic")
+            [-A|--api-key <file|key>]   Specifies the API key, or a file containing the API key
                                         (Default: ~/.yt_api_key)
-            [--cookies=<file>]          A netscape compatible cookie file (for age restricted videos)
+            [--cookies=<file>]          A netscape compatible cookie file (for age restricted videos
                                         (Default: ~/.yt_cookkies)
-            [-C|--resultcache <file>]   (allows video results to be cached in this file)
-                                        (only for playlists or channels)
-            [-O|--create-outputdir]     (allows creation of the output directories, recursively)
+            [-C|--resultcache <file>]   Allows video results to be cached in this file;
+                                        only for playlists or channels.
+            [-O|--create-outputdir]     Allows creation of the output directories, recursively.
+            [--downloader=exename]      Binary file name of a youtube-dl compatible tool.
+                                        Currently supported/tested: youtube-dl, youtube-dlc, yt-dlp.
             [--]
             <resource> [<resource> ...]
 
@@ -69,7 +82,6 @@ Use `maxresults=-1` to download everything which matches the searchterm.
 
 ## Requirements
 - PHP CLI
-- Package "youtube-dl" (ytdwn will try to download it automatically, if possible)
 - A YouTube API key (can be obtained here: https://console.developers.google.com/apis/credentials )
 - If you want to extract audio, you need additionally: ffmpeg or avconv and ffprobe or avprobe.
 - Optional: package "id3v2" to allow the YouTube video id to be transferred to the MP3 ID tag

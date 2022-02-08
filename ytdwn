@@ -1,7 +1,7 @@
 #!/usr/bin/php
 <?php
 
-// ViaThinkSoft YouTube Downloader Util 2.3
+// ViaThinkSoft YouTube Downloader Util 2.3.1
 // Revision: 2022-02-07
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
@@ -54,6 +54,7 @@ $extra_args =
               '-c ';  // resume partially downloaded video files
 $default_template = '%(title)s-%(id)s.%(ext)s';
 $cookie_file = AUTO_COOKIE_FILE;
+$downloader = 'yt-dlp';
 
 // Parse arguments
 // We do not use getopt() at the moment, because the important functionality "optind" is only available in PHP 7.1, which is not yet distributed with most of the stable Linux distros
@@ -110,6 +111,10 @@ while (count($argv_bak) > 0) {
 		array_shift($argv_bak);
 		if (count($rest_args) > 0) syntax_error("Invalid argument: ".$rest_args[0]);
 		$cookie_file = file_exists($m[3]) ? trim(file_get_contents($m[3])) : $m[3];
+	} else if (preg_match('@^(\-\-downloader)(\s+|=)(.*)$@s', $arg2, $m)) {
+		array_shift($argv_bak);
+		if (count($rest_args) > 0) syntax_error("Invalid argument: ".$rest_args[0]);
+		$downloader = $m[3];
 	} else if (preg_match('@^(/X|\-X|\-\-extra-args)(\s+|=)(.*)$@s', $arg2, $m)) {
 		array_shift($argv_bak);
 		if (count($rest_args) > 0) syntax_error("Invalid argument: ".$rest_args[0]);
@@ -146,6 +151,8 @@ unset($arg);
 unset($argv_bak);
 unset($init_extra_args);
 
+define('DOWNLOAD_YT_FORK', $downloader);
+
 // Validity checks
 
 if ((substr($type,0,2) != 'a:') && (substr($type,0,2) != 'v:')) syntax_error("Type must be either 'v:' or 'a:'. '$type' is not valid.");
@@ -157,45 +164,19 @@ if ($failTreshold <= 0) syntax_error("Fail treshold has invalid value. Must be >
 $cookie_file = expand_tilde($cookie_file);
 if (!file_exists($cookie_file)) $cookie_file = '';
 
-// Try to download/update youtube-dl into local directory
+// Try to download/update youtube-dl/yt-dlp into local directory
+download_latest_downloader();
 
-$newest_version_md5 = get_latest_ytdl_md5sum();
-if (!$newest_version_md5) {
-	fwrite(STDERR, "Failed to get MD5 sum of latest version of 'youtube-dl' from GitHub. Will not try to download/update 'youtube-dl' into local directory.\n");
-} else {
-	if (!file_exists(__DIR__.'/youtube-dl') || ($newest_version_md5 != md5_file(__DIR__.'/youtube-dl'))) {
-		// Try to download/update the file in our directory. It should be the newest available, since YT often breaks downloader
-		if (file_exists(__DIR__.'/youtube-dl')) {
-			echo "Trying to update 'youtube-dl' in local directory...\n";
-		} else {
-			echo "Trying to download 'youtube-dl' into local directory...\n";
-		}
-
-		@chmod(__DIR__.'/youtube-dl', 0777); // otherwise we might not be able to write to it
-
-		if (!($binary = file_get_contents('https://yt-dl.org/latest/youtube-dl'))) {
-			fwrite(STDERR, "Failed to download 'youtube-dl' into local directory (file_get_contents).\n");
-		} else if (!@file_put_contents(__DIR__.'/youtube-dl', $binary)) {
-			fwrite(STDERR, "Failed to download 'youtube-dl' into local directory (file_put_contents).\n");
-		} else {
-			if (!@chmod(__DIR__.'/youtube-dl', 0544)) {
-				fwrite(STDERR, "Failed to download 'youtube-dl' into local directory (chmod 544).\n");
-				@unlink(__DIR__.'/youtube-dl'); // try to delete, otherwise we might try to execute a non-executable file
-			}
-		}
-	}
-}
-
-if (command_exists(__DIR__.'/youtube-dl')) {
-	echo "Will use 'youtube-dl' from local directory\n";
-	define('YTDL_EXE', __DIR__.'/youtube-dl');
+if (command_exists(__DIR__.'/'.DOWNLOAD_YT_FORK)) {
+	echo "Will use '".DOWNLOAD_YT_FORK."' from local directory\n";
+	define('YTDL_EXE', __DIR__.'/'.DOWNLOAD_YT_FORK);
 } else {
 	// Download failed. Is at least a package installed?
-	if (command_exists('youtube-dl')) {
-		echo "Will use 'youtube-dl' from Linux package\n";
-		define('YTDL_EXE', 'youtube-dl');
+	if (command_exists(DOWNLOAD_YT_FORK)) {
+		echo "Will use '".DOWNLOAD_YT_FORK."' from Linux package\n";
+		define('YTDL_EXE', DOWNLOAD_YT_FORK);
 	} else {
-		fwrite(STDERR, "This script requires the tool/package 'youtube-dl'. Please install it first.\n");
+		fwrite(STDERR, "This script requires the tool/package '".DOWNLOAD_YT_FORK."'. Please install it first.\n");
 		exit(1);
 	}
 }
@@ -357,11 +338,12 @@ function ytdwn_channel_id($channel_id, $search='') {
 
 	// List the videos of the channel
 
-	$cont = !empty(_getResultcache()) && file_exists(_getResultcache()) ? file_get_contents(_getResultcache()) : '';
+	$use_cache = !empty(_getResultcache()) && file_exists(_getResultcache());
+	$cont = $use_cache ? file_get_contents(_getResultcache()) : '';
 	$out = json_decode($cont, true);
 	if ($out == NULL) $out = array();
 
-	if (!empty(_getResultcache())) {
+	if ($use_cache) {
 		$stats = yt_get_channel_stats($channel_id);
 		if ($stats === false) {
 			fwrite(STDERR, "Cannot get stats for channel with ID '$channel_id'\n");
@@ -380,12 +362,16 @@ function ytdwn_channel_id($channel_id, $search='') {
 	}
 
 	if ($videocount_old != $videocount) { // Attention: This might not work if videos are deleted and added (= the count stays the same)
-		if ($verbose && !empty(_getResultcache())) echo "Video count changed from $videocount_old to $videocount\n";
+		if ($verbose && $use_cache) echo "Video count changed from $videocount_old to $videocount\n";
 		$out[$key]['count'] = $videocount;
 		if (!empty($search)) {
 			$out[$key]['results'] = yt_channel_items($channel_id, $search);
 		} else {
 			$out[$key]['results'] = yt_channel_items($channel_id);
+		}
+		if (!$out[$key]['results']) {
+			fwrite(STDERR, "Cannot get result for channel with ID '$channel_id'\n");
+			return;
 		}
 	} else {
 		if ($verbose) echo "Video count for channel is still $videocount, keep ".count($out[$key]['results'])." results.\n";
@@ -394,7 +380,7 @@ function ytdwn_channel_id($channel_id, $search='') {
 	// Save the cache
 
 	try {
-		if (!empty(_getResultcache())) file_put_contents(_getResultcache(), json_encode($out));
+		if ($use_cache) file_put_contents(_getResultcache(), json_encode($out));
 	} catch(Exception $e) {
 		fwrite(STDERR, "Cannot write result cache\n");
 	}
@@ -419,11 +405,12 @@ function ytdwn_playlist_id($playlist_id) {
 
 	// List the videos of the playlist
 
-	$cont = !empty(_getResultcache()) && file_exists(_getResultcache()) ? file_get_contents(_getResultcache()) : '';
+	$use_cache = !empty(_getResultcache()) && file_exists(_getResultcache());
+	$cont = $use_cache ? file_get_contents(_getResultcache()) : '';
 	$out = json_decode($cont, true);
 	if ($out == NULL) $out = array();
 
-	if (!empty(_getResultcache())) {
+	if ($use_cache) {
 		$stats = yt_get_playlist_stats($playlist_id);
 		if ($stats === false) {
 			fwrite(STDERR, "Cannot get stats for playlist with ID '$playlist_id'\n");
@@ -442,9 +429,13 @@ function ytdwn_playlist_id($playlist_id) {
 	}
 
 	if ($videocount_old != $videocount) { // Attention: This might not work if videos are deleted and added (= the count stays the same)
-		if ($verbose && !empty(_getResultcache())) echo "Video count changed from $videocount_old to $videocount\n";
+		if ($verbose && $use_cache) echo "Video count changed from $videocount_old to $videocount\n";
 		$out[$key]['count'] = $videocount;
 		$out[$key]['results'] = yt_playlist_items($playlist_id);
+		if (!$out[$key]['results']) {
+			fwrite(STDERR, "Cannot get result for playlist with ID '$playlist_id'\n");
+			return;
+		}
 	} else {
 		if ($verbose) echo "Video count for playlist is still $videocount, keep ".count($out[$key]['results'])." results.\n";
 	}
@@ -452,7 +443,7 @@ function ytdwn_playlist_id($playlist_id) {
 	// Save the cache
 
 	try {
-		if (!empty(_getResultcache())) file_put_contents(_getResultcache(), json_encode($out));
+		if ($use_cache) file_put_contents(_getResultcache(), json_encode($out));
 	} catch(Exception $e) {
 		fwrite(STDERR, "Cannot write result cache\n");
 	}
@@ -930,17 +921,109 @@ function intelligent_rename($src, &$dest) {
 	return $res;
 }
 
-function get_latest_ytdl_md5sum() {
-	$ch = curl_init();
-	curl_setopt($ch, CURLOPT_URL, 'https://yt-dl.org/downloads/latest/MD5SUMS');
-	#curl_setopt($ch, CURLOPT_HEADER, false);
-	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-	$cont = curl_exec($ch);
-	$m = null;
-	if (preg_match('@^(.+)  youtube\-dl$@ismU', $cont, $m)) {
-		return $m[1];
-	} else {
-		return false;
+function download_latest_downloader() {
+	$download_url = false;
+
+	if (DOWNLOAD_YT_FORK == 'yt-dlp') {
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS');
+		#curl_setopt($ch, CURLOPT_HEADER, false);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		$cont = curl_exec($ch);
+		$m = null;
+		if (preg_match('@^(.+)\s+yt-dlp$@ismU', $cont, $m)) {
+			$newest_version_sha2 = $m[1];
+		} else {
+			$newest_version_sha2 = false;
+		}
+
+		if (!$newest_version_sha2) {
+			fwrite(STDERR, "Failed to get SHA2 sum of latest version of '".DOWNLOAD_YT_FORK."' online. Will not try to download/update '".DOWNLOAD_YT_FORK."' into local directory.\n");
+		} else {
+			if (!file_exists(__DIR__.'/'.DOWNLOAD_YT_FORK) || ($newest_version_sha2 != hash_file('sha256',__DIR__.'/'.DOWNLOAD_YT_FORK))) {
+				$download_url = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+			}
+		}
+	}
+
+	if (DOWNLOAD_YT_FORK == 'youtube-dlc') {
+		// TODO: What is the difference between these two? Which one should be chosen?!
+		// https://github.com/blackjack4494/yt-dlc (18372 commits, last commit 23 Aug 2021, last release 2020.11.11-3)
+		// https://github.com/blackjack4494/youtube-dlc (18888 commits, last commit 26 Jul 2021, last release 2020.10.09)
+
+		// TODO: yt-dlc The sha256 does not fit to the binary! Therefore, it is always downloaded!
+		// TODO: youtube-dlc has no hashes online...
+		/*
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, 'https://github.com/blackjack4494/yt-dlc/releases/latest/download/SHA2-256SUMS');
+		#curl_setopt($ch, CURLOPT_HEADER, false);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		$cont = curl_exec($ch);
+		$m = null;
+		if (preg_match('@^youtube\-dlc:(.+)$@ismU', $cont, $m)) {
+			$newest_version_sha2 = $m[1];
+		} else {
+			$newest_version_sha2 = false;
+		}
+
+		if (!$newest_version_sha2) {
+			fwrite(STDERR, "Failed to get SHA2 sum of latest version of '".DOWNLOAD_YT_FORK."' online. Will not try to download/update '".DOWNLOAD_YT_FORK."' into local directory.\n");
+		} else {
+			if (!file_exists(__DIR__.'/'.DOWNLOAD_YT_FORK) || ($newest_version_sha2 != hash_file('sha256',__DIR__.'/'.DOWNLOAD_YT_FORK))) {
+				$download_url = 'https://github.com/blackjack4494/yt-dlc/releases/latest/download/youtube-dlc';
+			}
+		}
+		*/
+
+		if (!file_exists(__DIR__.'/'.DOWNLOAD_YT_FORK) || (time()-filemtime(__DIR__.'/'.DOWNLOAD_YT_FORK) > 24*60*60)) {
+			$download_url = 'https://github.com/blackjack4494/yt-dlc/releases/latest/download/youtube-dlc';
+		}
+	}
+
+	if (DOWNLOAD_YT_FORK == 'youtube-dl') {
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, 'https://yt-dl.org/downloads/latest/MD5SUMS');
+		#curl_setopt($ch, CURLOPT_HEADER, false);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		$cont = curl_exec($ch);
+		$m = null;
+		if (preg_match('@^(.+)  youtube\-dl$@ismU', $cont, $m)) {
+			$newest_version_md5 = $m[1];
+		} else {
+			$newest_version_md5 = false;
+		}
+
+		if (!$newest_version_md5) {
+			fwrite(STDERR, "Failed to get MD5 sum of latest version of '".DOWNLOAD_YT_FORK."' online. Will not try to download/update '".DOWNLOAD_YT_FORK."' into local directory.\n");
+		} else {
+			if (!file_exists(__DIR__.'/'.DOWNLOAD_YT_FORK) || ($newest_version_md5 != md5_file(__DIR__.'/'.DOWNLOAD_YT_FORK))) {
+				$download_url = 'https://yt-dl.org/latest/youtube-dl';
+			}
+		}
+	}
+
+	if ($download_url !== false) {
+		// Try to download/update the file in our directory. It should be the newest available, since YT often breaks downloader
+		if (file_exists(__DIR__.'/'.DOWNLOAD_YT_FORK)) {
+			echo "Trying to update '".DOWNLOAD_YT_FORK."' in local directory...\n";
+		} else {
+			echo "Trying to download '".DOWNLOAD_YT_FORK."' into local directory...\n";
+		}
+
+		@chmod(__DIR__.'/'.DOWNLOAD_YT_FORK, 0777); // otherwise we might not be able to write to it
+
+		if (!($binary = file_get_contents($download_url))) {
+			fwrite(STDERR, "Failed to download '".DOWNLOAD_YT_FORK."' into local directory (file_get_contents).\n");
+		} else if (!@file_put_contents(__DIR__.'/'.DOWNLOAD_YT_FORK, $binary)) {
+			fwrite(STDERR, "Failed to download '".DOWNLOAD_YT_FORK."' into local directory (file_put_contents).\n");
+		} else {
+			if (!@chmod(__DIR__.'/'.DOWNLOAD_YT_FORK, 0544)) {
+				fwrite(STDERR, "Failed to download '".DOWNLOAD_YT_FORK."' into local directory (chmod 544).\n");
+				@unlink(__DIR__.'/'.DOWNLOAD_YT_FORK); // try to delete, otherwise we might try to execute a non-executable file
+			}
+		}
 	}
 }

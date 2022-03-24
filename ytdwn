@@ -2,7 +2,7 @@
 <?php
 
 // ViaThinkSoft YouTube Downloader Util 2.3.1
-// Revision: 2022-02-07
+// Revision: 2022-03-24
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 //
@@ -369,7 +369,7 @@ function ytdwn_channel_id($channel_id, $search='') {
 		} else {
 			$out[$key]['results'] = yt_channel_items($channel_id);
 		}
-		if (!$out[$key]['results']) {
+		if ($out[$key]['results'] === false) {
 			fwrite(STDERR, "Cannot get result for channel with ID '$channel_id'\n");
 			return;
 		}
@@ -387,7 +387,7 @@ function ytdwn_channel_id($channel_id, $search='') {
 
 	// Now download
 
-	if (!$out[$key]['results']) {
+	if ($out[$key]['results'] === false) {
 		fwrite(STDERR, "Cannot get result for channel with ID '$channel_id'\n");
 		return;
 	}
@@ -432,7 +432,7 @@ function ytdwn_playlist_id($playlist_id) {
 		if ($verbose && $use_cache) echo "Video count changed from $videocount_old to $videocount\n";
 		$out[$key]['count'] = $videocount;
 		$out[$key]['results'] = yt_playlist_items($playlist_id);
-		if (!$out[$key]['results']) {
+		if ($out[$key]['results'] === false) {
 			fwrite(STDERR, "Cannot get result for playlist with ID '$playlist_id'\n");
 			return;
 		}
@@ -450,7 +450,7 @@ function ytdwn_playlist_id($playlist_id) {
 
 	// Now download
 
-	if (!$out[$key]['results']) {
+	if ($out[$key]['results'] === false) {
 		fwrite(STDERR, "Cannot get result for playlist with ID '$playlist_id'\n");
 		return;
 	}
@@ -472,7 +472,7 @@ function ytdwn_search($search, $order='', $maxresults=-1) {
 
 	// Now download
 
-	if (!$results) {
+	if ($results === false) {
 		fwrite(STDERR, "Cannot get data for search '$search'\n");
 		return;
 	}

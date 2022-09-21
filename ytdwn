@@ -1,8 +1,8 @@
 #!/usr/bin/php
 <?php
 
-// ViaThinkSoft YouTube Downloader Util 2.3.1
-// Revision: 2022-03-24
+// ViaThinkSoft YouTube Downloader Util 2.3.2
+// Revision: 2022-09-21
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 //
@@ -345,7 +345,7 @@ function ytdwn_channel_id($channel_id, $search='') {
 
 	if ($use_cache) {
 		$stats = yt_get_channel_stats($channel_id);
-		if ($stats === false) {
+		if (!$stats) {
 			fwrite(STDERR, "Cannot get stats for channel with ID '$channel_id'\n");
 			return;
 		}
@@ -369,7 +369,7 @@ function ytdwn_channel_id($channel_id, $search='') {
 		} else {
 			$out[$key]['results'] = yt_channel_items($channel_id);
 		}
-		if ($out[$key]['results'] === false) {
+		if (!$out[$key]['results']) {
 			fwrite(STDERR, "Cannot get result for channel with ID '$channel_id'\n");
 			return;
 		}
@@ -387,7 +387,7 @@ function ytdwn_channel_id($channel_id, $search='') {
 
 	// Now download
 
-	if ($out[$key]['results'] === false) {
+	if (!$out[$key]['results']) {
 		fwrite(STDERR, "Cannot get result for channel with ID '$channel_id'\n");
 		return;
 	}
@@ -412,7 +412,7 @@ function ytdwn_playlist_id($playlist_id) {
 
 	if ($use_cache) {
 		$stats = yt_get_playlist_stats($playlist_id);
-		if ($stats === false) {
+		if (!$stats) {
 			fwrite(STDERR, "Cannot get stats for playlist with ID '$playlist_id'\n");
 			return;
 		}
@@ -432,7 +432,7 @@ function ytdwn_playlist_id($playlist_id) {
 		if ($verbose && $use_cache) echo "Video count changed from $videocount_old to $videocount\n";
 		$out[$key]['count'] = $videocount;
 		$out[$key]['results'] = yt_playlist_items($playlist_id);
-		if ($out[$key]['results'] === false) {
+		if (!$out[$key]['results']) {
 			fwrite(STDERR, "Cannot get result for playlist with ID '$playlist_id'\n");
 			return;
 		}
@@ -450,7 +450,7 @@ function ytdwn_playlist_id($playlist_id) {
 
 	// Now download
 
-	if ($out[$key]['results'] === false) {
+	if (!$out[$key]['results']) {
 		fwrite(STDERR, "Cannot get result for playlist with ID '$playlist_id'\n");
 		return;
 	}
@@ -472,7 +472,7 @@ function ytdwn_search($search, $order='', $maxresults=-1) {
 
 	// Now download
 
-	if ($results === false) {
+	if (!$results) {
 		fwrite(STDERR, "Cannot get data for search '$search'\n");
 		return;
 	}
@@ -553,7 +553,7 @@ function ytdwn_video_id($video_id) {
 		$written_file = $code == 0 ? ytdwn_get_downloaded_filename($outputTemplate, $video_id) : false;
 
 		if (($code == 0) && ($mp3id_transfer) && (strtolower($format) == 'mp3')) {
-			if ($written_file === false) {
+			if (!$written_file) {
 				fwrite(STDERR, "Cannot include YouTube ID to MP3, because the default template does not contain '%(id)s', or the downloaded file could not be determined for another reason.\n");
 			} else {
 				mp3_transfer_vid_to_id($written_file, $video_id);
@@ -567,7 +567,7 @@ function ytdwn_video_id($video_id) {
 	if ($code == 0) {
 		if ($verbose) {
 			fwrite(STDOUT, "Successfully downloaded video ID $video_id as ".hf_type($type)."\n");
-			if ($written_file !== false) fwrite(STDOUT, "Output file name: $written_file\n");
+			if ($written_file) fwrite(STDOUT, "Output file name: $written_file\n");
 		}
 		if (!empty(_getAlreadyDownloaded())) {
 			try {
@@ -580,7 +580,7 @@ function ytdwn_video_id($video_id) {
 		// Now do the checksums
 		foreach (explode(',',$checksumMode) as $mode) {
 			if (strtolower($mode) === 'none') continue;
-			if ($written_file === false) {
+			if (!$written_file) {
 				fwrite(STDERR, "Cannot add to the '$mode' checksum file, because the default template does not contain '%(id)s', or the downloaded file could not be determined for another reason.\n");
 			} else if (!cs_add_automatically($written_file, $mode)) {
 				fwrite(STDERR, "Could not write to '$mode' checksum file!\n");
@@ -1005,7 +1005,7 @@ function download_latest_downloader() {
 		}
 	}
 
-	if ($download_url !== false) {
+	if ($download_url) {
 		// Try to download/update the file in our directory. It should be the newest available, since YT often breaks downloader
 		if (file_exists(__DIR__.'/'.DOWNLOAD_YT_FORK)) {
 			echo "Trying to update '".DOWNLOAD_YT_FORK."' in local directory...\n";

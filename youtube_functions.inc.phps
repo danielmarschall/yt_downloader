@@ -1,7 +1,7 @@
 <?php
 
 // ViaThinkSoft YouTube Downloader Functions 2.3
-// Revision: 2022-02-06
+// Revision: 2022-12-19
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 
@@ -241,6 +241,8 @@ function yt_get_channel_id_from_custom_url($custom_url) {
 	// <link rel="canonical" href="https://www.youtube.com/channel/UCp4LfMtDfoa29kTlLnqQ5Mg">
 	// https://www.youtube.com/impaulsive
 	// <link rel="canonical" href="https://www.youtube.com/channel/UCGeBogGDZ9W3dsGx-mWQGJA">
+	// https://www.youtube.com/@KosmonautMusicSpecials
+	// <link rel="canonical" href="https://www.youtube.com/channel/UCayYOQ0DEIpcTgO9z_b-K1A">
 
 	$cont = @file_get_contents($custom_url);
 	if ($cont === false) {

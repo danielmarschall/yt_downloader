@@ -1,8 +1,8 @@
 #!/usr/bin/php
 <?php
 
-// ViaThinkSoft YouTube Downloader Util 2.3.2
-// Revision: 2022-09-21
+// ViaThinkSoft YouTube Downloader Util 2.3.3
+// Revision: 2022-12-19
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 //
@@ -191,7 +191,11 @@ foreach ($rest_args as $resource) {
 		fwrite(STDERR, "Invalid resource '$resource' (you are missing the prefix, e.g. vurl: or vid:). Skipping.\n");
 	} else {
 		list($resourceType, $resourceValue) = explode(':', $resource, 2);
-		ytdwn_handle_resource($resourceType, $resourceValue);
+		try {
+			ytdwn_handle_resource($resourceType, $resourceValue);
+		} catch(Exception $e) {
+			fwrite(STDERR, "Error at '$resourceType:$resourceValue': ".$e->getMessage()."\n");
+		}
 	}
 }
 
@@ -324,7 +328,11 @@ function ytdwn_list_file($list_file) {
 			fwrite(STDERR, "Invalid resource '$line' (you are missing the prefix, e.g. vurl: or vid:). Skipping.\n");
 		} else {
 			list($resourceType, $resourceValue) = explode(':',$line,2);
-			ytdwn_handle_resource($resourceType, $resourceValue);
+			try {
+				ytdwn_handle_resource($resourceType, $resourceValue);
+			} catch(Exception $e) {
+				fwrite(STDERR, "Error at line '$line': ".$e->getMessage()."\n");
+			}
 		}
 	}
 	array_pop($listFilenameStack);
@@ -370,6 +378,8 @@ function ytdwn_channel_id($channel_id, $search='') {
 			$out[$key]['results'] = yt_channel_items($channel_id);
 		}
 		if (!$out[$key]['results']) {
+			// TODO: If a channel has deleted all videos, then this message comes.
+			//       However, technically this is not an error.
 			fwrite(STDERR, "Cannot get result for channel with ID '$channel_id'\n");
 			return;
 		}
@@ -388,6 +398,8 @@ function ytdwn_channel_id($channel_id, $search='') {
 	// Now download
 
 	if (!$out[$key]['results']) {
+		// TODO: If a channel has deleted all videos, then this message comes.
+		//       However, technically this is not an error.
 		fwrite(STDERR, "Cannot get result for channel with ID '$channel_id'\n");
 		return;
 	}
@@ -433,6 +445,8 @@ function ytdwn_playlist_id($playlist_id) {
 		$out[$key]['count'] = $videocount;
 		$out[$key]['results'] = yt_playlist_items($playlist_id);
 		if (!$out[$key]['results']) {
+			// TODO: If a playlist has deleted all videos, then this message comes.
+			//       However, technically this is not an error.
 			fwrite(STDERR, "Cannot get result for playlist with ID '$playlist_id'\n");
 			return;
 		}
@@ -888,7 +902,7 @@ function ytdwn_register_fail($type, $video_id, $code) {
 	$m = null;
 	if (preg_match("@Video ID ".preg_quote($video_id,'@')." failed (\d+) time\(s\) with type ".preg_quote($type,'@')."@ismU", $cont, $m)) {
 		$cont = preg_replace("@Video ID ".preg_quote($video_id,'@')." failed (\d+) time\(s\) with type ".preg_quote($type,'@')."@ismU",
-		                     "Video ID $video_id failed ".($m[1]+1)." time(s) with type $type", $cont);
+		                     "Video ID $video_id failed ".(((int)$m[1])+1)." time(s) with type $type", $cont);
 		file_put_contents($file, $cont);
 	} else {
 		file_put_contents($file, "Video ID $video_id failed 1 time(s) with type $type\n", FILE_APPEND);

@@ -1,0 +1,18 @@
+
+With yt-dlp, you might get the error "ERROR: Postprocessing: Conversion failed!" if
+you have a tool old ffmpeg version.
+
+If you cannot update to a newer version to ffmpeg using aptitude,
+you can download (or compile) a new ffmpeg version.
+
+Example for downloading FFmpeg 5.1.1 for Raspberry Pi Buster (32 bit ARM)
+
+Visit:
+	https://johnvansickle.com/ffmpeg/
+Download and unpack:
+	wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-armhf-static.tar.xz
+	tar xvf ffmpeg-release-armhf-static.tar.xz
+	rm ffmpeg-release-armhf-static.tar.xz
+Create a symlink:
+	ln -s ffmpeg-5.1.1-armhf-static/ffmpeg .
+

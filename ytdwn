@@ -1,8 +1,8 @@
 #!/usr/bin/php
 <?php
 
-// ViaThinkSoft YouTube Downloader Util 2.3.3
-// Revision: 2022-12-19
+// ViaThinkSoft YouTube Downloader Util 2.4
+// Revision: 2022-12-27
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 //
@@ -55,6 +55,12 @@ $extra_args =
 $default_template = '%(title)s-%(id)s.%(ext)s';
 $cookie_file = AUTO_COOKIE_FILE;
 $downloader = 'yt-dlp';
+
+if (($downloader == 'yt-dlp') && file_exists(__DIR__.'/ffmpeg')) {
+	// With yt-dlp, you might get the error "ERROR: Postprocessing: Conversion failed!" if
+	// you have a tool old ffmpeg version.
+	$extra_args .= ' --ffmpeg-location '.escapeshellarg(__DIR__.'/ffmpeg');
+}
 
 // Parse arguments
 // We do not use getopt() at the moment, because the important functionality "optind" is only available in PHP 7.1, which is not yet distributed with most of the stable Linux distros
@@ -549,9 +555,13 @@ function ytdwn_video_id($video_id) {
 	if (substr($type,0,2) == 'v:') {
 		$format = substr($type,2);
 		if (!empty($format)) {
-			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)).' --format '.escapeshellarg($format), $out, $code);
+			$cmd = YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)).' --format '.escapeshellarg($format);
+			echo "$cmd\n";
+			exec($cmd, $out, $code);
 		} else {
-			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)), $out, $code);
+			$cmd = YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id));
+			echo "$cmd\n";
+			exec($cmd, $out, $code);
 		}
 
 		$written_file = $code == 0 ? ytdwn_get_downloaded_filename($outputTemplate, $video_id) : false;
@@ -559,9 +569,13 @@ function ytdwn_video_id($video_id) {
 	} else if (substr($type,0,2) == 'a:') {
 		$format = substr($type,2);
 		if (!empty($format)) {
-			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)).' --extract-audio --audio-format '.escapeshellarg($format), $out, $code);
+			$cmd = YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)).' --extract-audio --audio-format '.escapeshellarg($format);
+			echo "$cmd\n";
+			exec($cmd, $out, $code);
 		} else {
-			exec(YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)).' --extract-audio', $out, $code);
+			$cmd = YTDL_EXE.' -o '.escapeshellarg($outputTemplate).' '.$extra_args.(empty($cookie_file) ? '' : ' --cookies '.$cookie_file).' '.escapeshellarg(vid_to_vurl($video_id)).' --extract-audio';
+			echo "$cmd\n";
+			exec($cmd, $out, $code);
 		}
 
 		$written_file = $code == 0 ? ytdwn_get_downloaded_filename($outputTemplate, $video_id) : false;

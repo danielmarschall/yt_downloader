@@ -1,5 +1,5 @@
 
-# ViaThinkSoft YouTube Downloader 2.3.1
+# ViaThinkSoft YouTube Downloader 2.4.1
 
 YouTube Downloader is a tool for Linux. It is a wrapper for youtube-dl (or any compatible forks) and offers several additional functionalities.
 

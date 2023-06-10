@@ -1,8 +1,8 @@
 #!/usr/bin/php
 <?php
 
-// ViaThinkSoft YouTube Downloader Util 2.4
-// Revision: 2022-12-27
+// ViaThinkSoft YouTube Downloader Util 2.4.1
+// Revision: 2023-06-10
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 //
@@ -637,6 +637,13 @@ function EndsWith($Haystack, $Needle){
 	return strrpos($Haystack, $Needle) === strlen($Haystack)-strlen($Needle);
 }
 
+/**
+ * Tries to put the video ID into the MP3 meta tags, and then removes the ID
+ * from the file name.
+ * @param $written_file
+ * @param $video_id
+ * @return bool
+ */
 function mp3_transfer_vid_to_id(&$written_file, $video_id) {
 	global $verbose;
 	global $default_template;
@@ -934,15 +941,39 @@ function ytdwn_fail_counter($type, $video_id) {
 	}
 }
 
+/**
+ * @param string $fileName
+ * @param bool $caseSensitive
+ * @return bool
+ * @see https://stackoverflow.com/questions/3964793/php-case-insensitive-version-of-file-exists
+ */
+function file_exists_ext(string $fileName, bool $caseSensitive = true): bool {
+	if(file_exists($fileName)) {
+		return true; // $fileName;
+	}
+	if($caseSensitive) return false;
+
+	// Handle case insensitive requests
+	$directoryName = dirname($fileName);
+	$fileArray = glob($directoryName . '/*', GLOB_NOSORT);
+	$fileNameLowerCase = strtolower($fileName);
+	foreach($fileArray as $file) {
+		if(strtolower($file) == $fileNameLowerCase) {
+			return true; // $file;
+		}
+	}
+	return false;
+}
+
 function intelligent_rename($src, &$dest) {
 	$pos = strrpos($dest, '.');
 	$ext = substr($dest, $pos);
 	$namewoext = substr($dest, 0, $pos);
-	$failcnt = 1;
+	$duplicate_count = 1;
 	$dest_neu = $dest;
-	while (file_exists($dest_neu)) {
-		$failcnt++;
-		$dest_neu = "$namewoext ($failcnt)$ext";
+	while (file_exists_ext($dest_neu, false)) {
+		$duplicate_count++;
+		$dest_neu = "$namewoext ($duplicate_count)$ext";
 	}
 	$res = rename($src, $dest_neu);
 	if ($res) $dest = $dest_neu;

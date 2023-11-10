@@ -1,8 +1,8 @@
 #!/usr/bin/php
 <?php
 
-// ViaThinkSoft YouTube Downloader Util 2.4.1
-// Revision: 2023-06-10
+// ViaThinkSoft YouTube Downloader Util 2.4.2
+// Revision: 2023-11-10
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 //
@@ -55,12 +55,6 @@ $extra_args =
 $default_template = '%(title)s-%(id)s.%(ext)s';
 $cookie_file = AUTO_COOKIE_FILE;
 $downloader = 'yt-dlp';
-
-if (($downloader == 'yt-dlp') && file_exists(__DIR__.'/ffmpeg')) {
-	// With yt-dlp, you might get the error "ERROR: Postprocessing: Conversion failed!" if
-	// you have a tool old ffmpeg version.
-	$extra_args .= ' --ffmpeg-location '.escapeshellarg(__DIR__.'/ffmpeg');
-}
 
 // Parse arguments
 // We do not use getopt() at the moment, because the important functionality "optind" is only available in PHP 7.1, which is not yet distributed with most of the stable Linux distros
@@ -156,6 +150,21 @@ while (count($argv_bak) > 0) {
 unset($arg);
 unset($argv_bak);
 unset($init_extra_args);
+
+// Special arguments required for some downloads
+
+if (($downloader == 'yt-dlp') && file_exists(__DIR__.'/ffmpeg')) {
+	// With yt-dlp, you might get the error "ERROR: Postprocessing: Conversion failed!" if
+	// you have a tool old ffmpeg version.
+	$extra_args .= ' --ffmpeg-location '.escapeshellarg(__DIR__.'/ffmpeg');
+}
+
+if ($downloader == 'yt-dlp') {
+	// https://github.com/yt-dlp/yt-dlp/issues/7872
+	// Some formats are not downloadable and yt-dlp rather cancels everything instead of just downloading the correct thing...!
+	// Make sure that we select a format that is downloadable!
+	$extra_args .= ' --check-formats';
+}
 
 define('DOWNLOAD_YT_FORK', $downloader);
 

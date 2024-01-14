@@ -1,8 +1,8 @@
 #!/usr/bin/php
 <?php
 
-// ViaThinkSoft YouTube Downloader Util 2.4.2
-// Revision: 2023-11-10
+// ViaThinkSoft YouTube Downloader Util 2.4.3
+// Revision: 2024-01-14
 // Author: Daniel Marschall <www.daniel-marschall.de>
 // Licensed under the terms of the Apache 2.0 License
 //
@@ -795,7 +795,7 @@ function _getApiKey() {
 		if (file_exists($auto_api_key)) {
 			$out = trim(file_get_contents($auto_api_key));
 		} else {
-			syntax_error("Please specify a YouTube API key with argument '-A'.");
+			syntax_error("YouTube API key not found in file '$auto_api_key'. To specify the path, use the argument '-A'");
 		}
 	} else {
 		$out = str_replace('[listname]', _getLastListname(), $out);
@@ -808,7 +808,7 @@ function _getApiKey() {
 		}
 	}
 
-	if (!yt_check_apikey_syntax($out)) syntax_error("'$out' is not a valid API key, not an existing file containing an API key.\n");
+	if (!yt_check_apikey_syntax($out)) syntax_error("'$out' is not a valid API key, not an existing file containing an API key.");
 
 	return $out;
 }
